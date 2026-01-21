@@ -1,4 +1,6 @@
 import sqlite3
+import random
+import string
 from contextlib import contextmanager
 from datetime import datetime, date
 
@@ -8,7 +10,7 @@ from datetime import datetime, date
 # ==================================================
 class DBService:
     """
-        This class handles the connection to our MySQL database.
+        This class handles the connection to our SQLite database.
         It saves us from writing the connection code every time we want to run a query.
     """
 
@@ -320,16 +322,24 @@ class Manager(Employee):
         assets["totals"]["revenue"] = res_revenue['total'] if res_revenue and res_revenue['total'] else 0
 
         # 5. Peak Months (Bypasses filter - fixed to trailing 1 year for relevance)
+        month_names_map = {
+            '01': 'January', '02': 'February', '03': 'March', '04': 'April',
+            '05': 'May', '06': 'June', '07': 'July', '08': 'August',
+            '09': 'September', '10': 'October', '11': 'November', '12': 'December'
+        }
+
+        raw_months = DBService.run("""
+            SELECT strftime('%m', Execute_DateTime) as month_num, COUNT(*) as order_count
+            FROM Orders
+            WHERE Execute_DateTime >= date('now', '-1 year')
+            GROUP BY month_num
+            ORDER BY order_count DESC
+            LIMIT 3
+        """, fetchall=True)
+
         assets["lists"]["top_months"] = [
-            {"name": r['month_name']}
-            for r in DBService.run("""
-                        SELECT strftime('%m', Execute_DateTime) as month_name, COUNT(*) as order_count
-                        FROM Orders
-                        WHERE Execute_DateTime >= date('now', '-1 year')
-                        GROUP BY MONTH(Execute_DateTime), month_name
-                        ORDER BY order_count DESC
-                        LIMIT 3
-                    """, fetchall=True)
+            {"name": month_names_map.get(r['month_num'], r['month_num'])}
+            for r in raw_months
         ]
 
         # 6. Cancellation Rate (Filtered period OR All Time)
@@ -400,8 +410,8 @@ class Airplane:
         """ Registers a new airplane and its seating layout in the database. """
         DBService.run(
             """
-            INSERT INTO Airplanes 
-            (Airplane_ID, Class_Type, Manufacturer, Size, Purchase_Date, Number_of_rows, Number_of_columns) 
+            INSERT INTO Airplanes
+            (Airplane_ID, Class_Type, Manufacturer, Size, Purchase_Date, Number_of_rows, Number_of_columns)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -431,13 +441,6 @@ class Flight:
         self.price_business = price_business
         self.status = status
 
-    # Base SQL to get flight data and calculate arrival time using route duration
-    BASE_QUERY = """
-            SELECT f.*, r.Duration, 
-                   datetime(f.Departure_Time, '+' || r.Duration || ' minutes') as Arrival_Time
-            FROM Flights f
-            ...
-    """
 
     @property
     def formatted_duration(self):
@@ -465,7 +468,17 @@ class Flight:
 
     @staticmethod
     def get_display_status(db_status, arrival_time):
+        if not arrival_time:
+            return db_status
         now = datetime.now()
+        if isinstance(arrival_time, str):
+            arrival_time = arrival_time.split('.')[0]
+            for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+                try:
+                    arrival_time = datetime.strptime(arrival_time, fmt)
+                    break
+                except ValueError:
+                    continue
         if db_status == 'Canceled':
             return 'Canceled'
         if db_status == 'Active' and arrival_time <= now:
@@ -475,17 +488,17 @@ class Flight:
     @staticmethod
     def search(filters=None, for_manager=False):
         query = """
-            SELECT 
-                f1.Flight_ID, 
-                MAX(f1.Origin_AirportFK) as Origin_AirportFK, 
+            SELECT
+                f1.Flight_ID,
+                MAX(f1.Origin_AirportFK) as Origin_AirportFK,
                 MAX(f1.Destination_AirportFK) as Destination_AirportFK,
-                MAX(f1.Departure_Time) as Departure_Time, 
-                MAX(COALESCE(datetime(f1.Departure_Time, '+' || r.Duration || ' minutes'), f1.Departure_Time)) as Arrival_Time, 
+                MAX(f1.Departure_Time) as Departure_Time,
+                MAX(COALESCE(datetime(f1.Departure_Time, '+' || r.Duration || ' minutes'), f1.Departure_Time)) as Arrival_Time,
                 MAX(f1.Status) as status,
                 MAX(CASE WHEN f1.Class_TypeFK = 'Economy' THEN f1.Status END) as eco_status,
                 MAX(CASE WHEN f1.Class_TypeFK = 'Business' THEN f1.Status END) as bus_status
             FROM Flights f1
-            LEFT JOIN Routes r ON f1.Origin_AirportFK = r.Origin_Airport 
+            LEFT JOIN Routes r ON f1.Origin_AirportFK = r.Origin_Airport
                                AND f1.Destination_AirportFK = r.Destination_Airport
             WHERE 1=1
         """
@@ -519,7 +532,21 @@ class Flight:
 
         results = []
         for row in rows:
-            display_status = Flight.get_display_status(row['status'], row['Arrival_Time'])
+            def safe_strptime(val):
+                if not val: return None
+                if isinstance(val, datetime): return val
+                s = str(val).split('.')[0]
+                for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+                    try:
+                        return datetime.strptime(s, fmt)
+                    except ValueError:
+                        continue
+                return None
+
+            dep_time = safe_strptime(row['Departure_Time'])
+            arr_time = safe_strptime(row['Arrival_Time'])
+
+            display_status = Flight.get_display_status(row['status'], arr_time)
 
             if for_manager and display_status not in ['Canceled', 'Completed']:
                 if row['eco_status'] == 'Fully Booked' and row['bus_status'] == 'Active':
@@ -531,8 +558,8 @@ class Flight:
                 "flight_id": row['Flight_ID'],
                 "origin": row['Origin_AirportFK'],
                 "destination": row['Destination_AirportFK'],
-                "departure_time": row['Departure_Time'],
-                "arrival_time": row['Arrival_Time'],
+                "departure_time": dep_time,
+                "arrival_time": arr_time,
                 "status": row['status'],
                 "display_status": display_status
             })
@@ -540,15 +567,35 @@ class Flight:
 
     @staticmethod
     def get_by_id(flight_id, class_type=None):
-        """ Fetches full flight details. """
-        query = f"{Flight.BASE_QUERY} WHERE f.Flight_ID = ?"
+        """ Fetches full flight details with robust date parsing. """
+        query = """
+            SELECT f.*, r.Duration,
+                   datetime(f.Departure_Time, '+' || r.Duration || ' minutes') as Arrival_Time
+            FROM Flights f
+            LEFT JOIN Routes r ON f.Origin_AirportFK = r.Origin_Airport
+                               AND f.Destination_AirportFK = r.Destination_Airport
+            WHERE f.Flight_ID = ?
+        """
         rows = DBService.run(query, (flight_id,), fetchall=True)
 
         if not rows:
             return None
 
         data = rows[0]
-        duration = data['Duration']
+
+        def to_dt(val):
+            if not val: return None
+            if isinstance(val, datetime): return val
+            s = str(val).split('.')[0]
+            for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+                try:
+                    return datetime.strptime(s, fmt)
+                except ValueError:
+                    continue
+            return None
+
+        dep_time = to_dt(data['Departure_Time'])
+        arr_time = to_dt(data['Arrival_Time'])
 
         price_regular = None
         price_business = None
@@ -569,16 +616,15 @@ class Flight:
             airplane_id=data['Airplane_IDFK'],
             origin=data['Origin_AirportFK'],
             destination=data['Destination_AirportFK'],
-            departure_time=data['Departure_Time'],
-            arrival_time=data['Arrival_Time'],
-            duration=duration,
+            departure_time=dep_time,
+            arrival_time=arr_time,
+            duration=data['Duration'],
             price_regular=price_regular,
             price_business=price_business,
             status=data['Status']
         )
 
-        f_obj.display_status = Flight.get_display_status(data['Status'], data['Arrival_Time'])
-
+        f_obj.display_status = Flight.get_display_status(data['Status'], arr_time)
         f_obj.eco_status = eco_status
         f_obj.bus_status = bus_status
 
@@ -628,7 +674,7 @@ class Flight:
             FROM Airplanes
             WHERE (
                 Airplane_ID NOT IN (SELECT DISTINCT Airplane_IDFK FROM Flights)
-                OR 
+                OR
                 Airplane_ID IN (
                     SELECT f1.Airplane_IDFK
                     FROM Flights f1
@@ -642,8 +688,8 @@ class Flight:
                 )
             )
             AND Airplane_ID NOT IN (
-                SELECT Airplane_IDFK FROM Flights 
-                WHERE Status = 'Active' 
+                SELECT Airplane_IDFK FROM Flights
+                WHERE Status = 'Active'
                 AND (Departure_Time <= ? AND Arrival_Time >= ?)
             )
         """
@@ -662,7 +708,7 @@ class Flight:
         long SQL query twice (once for pilots and once for attendants).
         """
         req_dep_time = datetime.fromisoformat(departure_time_str)
-        qualification_filter = "AND Qualifications=TRUE" if flight_type == 'long' else ""
+        qualification_filter = "AND Qualifications=1" if flight_type == 'long' else ""
 
         def get_crew_by_role(role):
             query = f"""
@@ -688,7 +734,7 @@ class Flight:
                         )
                     )
                     AND Employee_ID NOT IN (
-                        SELECT fa2.Employee_IDFK 
+                        SELECT fa2.Employee_IDFK
                         FROM Flight_assigned fa2
                         JOIN Flights f2 ON fa2.Flight_IDFK = f2.Flight_ID
                         WHERE f2.Status IN ('Active', 'Fully Booked')
@@ -732,22 +778,45 @@ class Flight:
         return True, None
 
     @staticmethod
-    def create_flight(origin, destination, departure_time, airplane_id, pilot_ids, attendant_ids, db,
+    def create_flight(origin, destination, departure_time, arrival_time, airplane_id, pilot_ids, attendant_ids, db,
                       price_regular, price_business):
         """
         Creates a new flight entry and assigns the chosen crew members.
         """
-        flight_id = f"FT{datetime.now().strftime('%M%S')}"
+        # Generate a random Flight ID (e.g., AB123)
+        letters = ''.join(random.choices(string.ascii_uppercase, k=2))
+        numbers = ''.join(random.choices(string.digits, k=3))
+
+        flight_id = f"{letters}{numbers}"
+        # Ensure ID uniqueness: regenerate if already exists in DB
+        while db.run("SELECT 1 FROM Flights WHERE Flight_ID = ?", (flight_id,), fetchone=True):
+            letters = ''.join(random.choices(string.ascii_uppercase, k=2))
+            numbers = ''.join(random.choices(string.digits, k=3))
+            flight_id = f"{letters}{numbers}"
+
+        clean_dep = str(departure_time).replace('T', ' ')[:16]
+        clean_arr = str(arrival_time).replace('T', ' ')[:16]
 
         db.run(
             """
-            INSERT INTO Flights 
-            (Flight_ID, Class_TypeFK, Airplane_IDFK, Origin_AirportFK, Destination_AirportFK, 
-             Departure_Time, Economy_price, Business_price, Status) 
+            INSERT INTO Flights
+            (Flight_ID, Class_TypeFK, Airplane_IDFK, Origin_AirportFK, Destination_AirportFK,
+             Departure_Time, Arrival_Time, Economy_price, Status)
             VALUES (?, 'Economy', ?, ?, ?, ?, ?, ?, 'Active')
             """,
-            (flight_id, airplane_id, origin, destination, departure_time, price_regular, price_business)
+            (flight_id, airplane_id, origin, destination, clean_dep, clean_arr, price_regular)
         )
+
+        if price_business and float(price_business) > 0:
+            db.run(
+                """
+                INSERT INTO Flights
+                (Flight_ID, Class_TypeFK, Airplane_IDFK, Origin_AirportFK, Destination_AirportFK,
+                 Departure_Time, Arrival_Time, Business_price, Status)
+                VALUES (?, 'Business', ?, ?, ?, ?, ?, ?, 'Active')
+                """,
+                (flight_id, airplane_id, origin, destination, clean_dep, clean_arr, price_business)
+            )
 
         for eid in pilot_ids + attendant_ids:
             db.run("INSERT INTO Flight_assigned (Employee_IDFK, Flight_IDFK) VALUES (?, ?)", (eid, flight_id))
@@ -812,8 +881,8 @@ class Flight:
         dest_data = []
         for code, info in pool.items():
             query = """
-                    SELECT MIN(Economy_price) as min_price 
-                    FROM Flights 
+                    SELECT MIN(Economy_price) as min_price
+                    FROM Flights
                     WHERE Destination_AirportFK = ? AND Status = 'Active' AND Departure_Time > CURRENT_TIMESTAMP
                 """
             res = DBService.run(query, (code,), fetchone=True)
@@ -844,6 +913,12 @@ class Order:
     @staticmethod
     def get_display_status(db_status, arrival_time):
         now = datetime.now()
+        if isinstance(arrival_time, str):
+            arrival_time = arrival_time.split('.')[0]
+            try:
+                arrival_time = datetime.strptime(arrival_time, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                arrival_time = datetime.strptime(arrival_time, '%Y-%m-%d %H:%M')
         if db_status in ['Customer Cancellation', 'Canceled', 'Completed']:
             return db_status
         if db_status == 'Active' and arrival_time <= now:
@@ -892,50 +967,89 @@ class Order:
 
     @staticmethod
     def get_guest_orders(order_id, email):
-        """ Retrieves guest orders using both ID and Email. """
+        """ Retrieves guest orders and converts dates to objects for unified handling. """
         query = """
-                       SELECT DISTINCT o.Order_ID, o.Flight_IDFK, o.Total_Price, o.Status,
-                              o.Execute_DateTime, f.Departure_Time,
-                              DATE_ADD(f.Departure_Time, INTERVAL r.Duration MINUTE) as Arrival_Time
-                       FROM Orders o
-                       JOIN Flights f ON o.Flight_IDFK = f.Flight_ID
-                       JOIN Routes r ON f.Origin_AirportFK = r.Origin_Airport 
-                                     AND f.Destination_AirportFK = r.Destination_Airport
-                       WHERE o.Order_ID = ? AND o.Customer_email = ?
-                    """
+               SELECT DISTINCT o.Order_ID, o.Flight_IDFK, o.Total_Price, o.Status,
+                      o.Execute_DateTime,
+                      f.Departure_Time,
+                      datetime(f.Departure_Time, '+' || r.Duration || ' minutes') as Arrival_Time
+               FROM Orders o
+               JOIN Flights f ON o.Flight_IDFK = f.Flight_ID
+               JOIN Routes r ON f.Origin_AirportFK = r.Origin_Airport
+                             AND f.Destination_AirportFK = r.Destination_Airport
+               WHERE o.Order_ID = ? AND o.Customer_email = ?
+            """
         rows = DBService.run(query, (order_id, email), fetchall=True)
 
-        return [{
-            "order_id": r['Order_ID'],
-            "flight_id": r['Flight_IDFK'],
-            "total_price": r['Total_Price'],
-            "status": r['Status'],
-            "display_status": Order.get_display_status(r['Status'], r['Arrival_Time']),
-            "order_date": r['Execute_DateTime'],
-            "departure_time": r['Departure_Time'],
-            "arrival_time": r['Arrival_Time']
-        } for r in rows]
+        results = []
+        for r in rows:
+            def to_dt(val):
+                if not val: return None
+                if isinstance(val, datetime): return val
+                s = str(val).split('.')[0]
+                for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+                    try: return datetime.strptime(s, fmt)
+                    except: continue
+                return None
+
+            dep = to_dt(r['Departure_Time'])
+            arr = to_dt(r['Arrival_Time'])
+            exe = to_dt(r['Execute_DateTime'])
+
+            results.append({
+                "order_id": r['Order_ID'],
+                "flight_id": r['Flight_IDFK'],
+                "total_price": r['Total_Price'],
+                "status": r['Status'],
+                "display_status": Order.get_display_status(r['Status'], arr),
+                "order_date": exe,
+                "departure_time": dep,
+                "arrival_time": arr
+            })
+        return results
 
     @staticmethod
     def get_user_orders(email):
         """ Retrieves all orders associated with a registered user. """
         query = """
-                           SELECT DISTINCT o.Order_ID, o.Flight_IDFK, o.Total_Price, o.Status,
-                                  o.Execute_DateTime, f.Departure_Time,
-                                  DATE_ADD(f.Departure_Time, INTERVAL r.Duration MINUTE) as Arrival_Time
-                           FROM Orders o
-                           JOIN Flights f ON o.Flight_IDFK = f.Flight_ID
-                           JOIN Routes r ON f.Origin_AirportFK = r.Origin_Airport 
-                                         AND f.Destination_AirportFK = r.Destination_Airport
-                           WHERE o.Customer_email = ?
-                        """
+               SELECT DISTINCT o.Order_ID, o.Flight_IDFK, o.Total_Price, o.Status,
+                      o.Execute_DateTime, f.Departure_Time,
+                      datetime(f.Departure_Time, '+' || r.Duration || ' minutes') as Arrival_Time
+               FROM Orders o
+               JOIN Flights f ON o.Flight_IDFK = f.Flight_ID
+               JOIN Routes r ON f.Origin_AirportFK = r.Origin_Airport
+                             AND f.Destination_AirportFK = r.Destination_Airport
+               WHERE o.Customer_email = ?
+            """
         rows = DBService.run(query, (email,), fetchall=True)
-        return [{
-            "order_id": r['Order_ID'], "flight_id": r['Flight_IDFK'], "total_price": r['Total_Price'],
-            "status": r['Status'], "display_status": Order.get_display_status(r['Status'], r['Arrival_Time']), "order_date": r['Execute_DateTime'],
-            "departure_time": r['Departure_Time'], "arrival_time": r['Arrival_Time'],
-            "customer_email": email
-        } for r in rows]
+
+        results = []
+        for r in rows:
+            def to_dt(val):
+                if not val: return None
+                if isinstance(val, datetime): return val
+                s = str(val).split('.')[0]
+                for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+                    try: return datetime.strptime(s, fmt)
+                    except: continue
+                return None
+
+            dep = to_dt(r['Departure_Time'])
+            arr = to_dt(r['Arrival_Time'])
+            exe = to_dt(r['Execute_DateTime'])
+
+            results.append({
+                "order_id": r['Order_ID'],
+                "flight_id": r['Flight_IDFK'],
+                "total_price": r['Total_Price'],
+                "status": r['Status'],
+                "display_status": Order.get_display_status(r['Status'], arr),
+                "order_date": exe,
+                "departure_time": dep,
+                "arrival_time": arr,
+                "customer_email": email
+            })
+        return results
 
     @staticmethod
     def update_order(order_id, status=None, total_price=None):
@@ -960,14 +1074,15 @@ class Order:
         """
         res = DBService.run("SELECT MAX(Order_ID) as max_id FROM Orders", fetchone=True)
         order_id = (res['max_id'] or 0) + 1
+        now_cleaned = datetime.now().replace(microsecond=0)
 
         DBService.run(
             """
-            INSERT INTO Orders 
+            INSERT INTO Orders
             (Order_ID, Flight_IDFK, Customer_type, Customer_email, Execute_DateTime, Total_Price, Status)
             VALUES (?, ?, ?, ?, ?, ?, 'Active')
             """,
-            (order_id, flight_id, customer_type, customer_email, datetime.now(), total_price)
+            (order_id, flight_id, customer_type, customer_email, now_cleaned, total_price)
         )
 
         for seat in selected_seats:

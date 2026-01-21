@@ -22,23 +22,23 @@ con = sqlite3.connect(db_path)
 
 # --- Query 1: Revenue breakdown ---
 query_revenue = """
-SELECT 
-    a.Size AS Airplane_Size, 
-    a.Manufacturer AS Airplane_Manufacturer, 
+SELECT
+    a.Size AS Airplane_Size,
+    a.Manufacturer AS Airplane_Manufacturer,
     a.Class_Type AS Cabin_Class,
     ROUND(SUM(o.Total_Price), 2) AS Total_Revenue
 FROM Orders o
 JOIN Flights f ON o.Flight_IDFK = f.Flight_ID
 JOIN Airplanes a ON f.Airplane_IDFK = a.Airplane_ID AND f.Class_TypeFK = a.Class_Type
 WHERE EXISTS (
-    SELECT 1 FROM Tickets t 
-    WHERE t.Order_IDFK = o.Order_ID 
+    SELECT 1 FROM Tickets t
+    WHERE t.Order_IDFK = o.Order_ID
     AND t.Flight_IDFK = f.Flight_ID
     AND (
         (a.Class_Type = 'Business' AND t.Row_Num <= a.Number_of_rows)
-        OR 
-        (a.Class_Type = 'Economy' AND t.Row_Num > 
-            COALESCE((SELECT a2.Number_of_rows FROM Airplanes a2 
+        OR
+        (a.Class_Type = 'Economy' AND t.Row_Num >
+            COALESCE((SELECT a2.Number_of_rows FROM Airplanes a2
                       WHERE a2.Airplane_ID = a.Airplane_ID AND a2.Class_Type = 'Business'), 0))
     )
 )
@@ -48,20 +48,20 @@ ORDER BY Total_Revenue DESC;
 
 # --- Query 2: Crew Flight Hours ---
 query_crew = """
-SELECT 
+SELECT
     fc.Employee_ID,
     fc.First_Name,
     fc.Last_Name,
-    fc.Role, 
+    fc.Role,
     SUM(CASE WHEN r.Duration/60.0 <= 6 AND f.Status = 'Completed' THEN ROUND(r.Duration/60.0,1) ELSE 0 END) AS Short_Flight_Hours,
     SUM(CASE WHEN r.Duration/60.0 > 6 AND f.Status = 'Completed' THEN ROUND(r.Duration/60.0,1) ELSE 0 END) AS Long_Flight_Hours
 FROM FlightCrew fc
 LEFT JOIN Flight_assigned fa ON fc.Employee_ID = fa.Employee_IDFK
 LEFT JOIN (
-    SELECT DISTINCT Flight_ID, Origin_AirportFK, Destination_AirportFK, Status 
+    SELECT DISTINCT Flight_ID, Origin_AirportFK, Destination_AirportFK, Status
     FROM Flights
 ) f ON fa.Flight_IDFK = f.Flight_ID
-LEFT JOIN Routes r ON f.Origin_AirportFK = r.Origin_Airport 
+LEFT JOIN Routes r ON f.Origin_AirportFK = r.Origin_Airport
                  AND f.Destination_AirportFK = r.Destination_Airport
 GROUP BY fc.Employee_ID, fc.First_Name, fc.Last_Name, fc.Role;
 """

@@ -4,10 +4,15 @@ from utilise import Customer, RegisteredUser, Manager, Flight, Order, SessionSer
 from datetime import datetime, timedelta, date
 
 app = Flask(__name__)
-app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
+app.config.update(
+    SESSION_TYPE="filesystem",
+    SESSION_FILE_DIR="/home/amitaloni890/FlyTAU/flask_session_data",
+    SESSION_PERMANENT=True,
+    PERMANENT_SESSION_LIFETIME=timedelta(minutes=30),
+    SESSION_REFRESH_EACH_REQUEST=True,
+    SESSION_COOKIE_SECURE=True
+)
 Session(app)
-
 
 # ==================================================
 # HOMEPAGE & NAVIGATION
@@ -351,11 +356,6 @@ def my_account():
     seen_order_ids = set()
 
     for o in raw_orders:
-        if isinstance(o['departure_time'], str):
-            o['departure_time'] = datetime.strptime(o['departure_time'], '%Y-%m-%d %H:%M')
-        if isinstance(o['order_date'], str):
-            o['order_date'] = datetime.strptime(o['order_date'], '%Y-%m-%d %H:%M')
-
         if o['order_id'] in seen_order_ids:
             continue
         seen_order_ids.add(o['order_id'])
@@ -363,11 +363,12 @@ def my_account():
         seats_data = Order.get_seats_by_order(o['order_id'])
         o['seats'] = seats_data
 
-        if o['departure_time'] > now and o['status'] == 'Active':
+        dep_time = o['departure_time']
+
+        if dep_time and isinstance(dep_time, datetime) and dep_time > now and o['status'] == 'Active':
             o['display_status'] = 'Active'
             active_orders.append(o)
         else:
-            o['display_status'] = Order.get_display_status(o['status'], o['arrival_time'])
             if not selected_status or o['display_status'] == selected_status:
                 past_orders.append(o)
 
@@ -396,41 +397,34 @@ def cancel_order(order_id):
 
     canceled = False
     new_price = None
+    now = datetime.now()
 
     if order:
-        if isinstance(order['departure_time'], str):
-            order['departure_time'] = datetime.strptime(order['departure_time'], '%Y-%m-%d %H:%M')
+        dep_time = order['departure_time']
+        if dep_time and isinstance(dep_time, datetime):
+            limit = now + timedelta(hours=36)
 
-        cancel_time_limit = datetime.now() + timedelta(hours=36)
+            if dep_time > limit:
+                new_price = round(float(order.get('total_price', 0)) * 0.05, 2)
+                Order.update_order(order_id, status='Customer Cancellation', total_price=new_price)
+                canceled = True
 
-        if order['departure_time'] > cancel_time_limit:
-            new_price = round(float(order.get('total_price', 0)) * 0.05, 2)
-            Order.update_order(order_id, status='Customer Cancellation', total_price=new_price)
-            canceled = True
-
-            DBService.run(
-                "UPDATE Flights SET Status = 'Active' WHERE Flight_ID = ? AND Status = 'Fully Booked'",
-                (order['flight_id'],)
-            )
-
+                DBService.run(
+                    "UPDATE Flights SET Status = 'Active' WHERE Flight_ID = ? AND Status = 'Fully Booked'",
+                    (order['flight_id'],)
+                )
             orders = Order.get_user_orders(email) if email else Order.get_guest_orders(order_id, session.get('guest_email', 'guest@example.com'))
 
     active_orders = []
     past_orders = []
-    now = datetime.now()
+    current_time_str = now.strftime('%Y-%m-%d %H:%M')
 
     for o in orders:
-        if isinstance(o['departure_time'], str):
-            o['departure_time'] = datetime.strptime(o['departure_time'], '%Y-%m-%d %H:%M')
-        if isinstance(o['order_date'], str):
-            o['order_date'] = datetime.strptime(o['order_date'], '%Y-%m-%d %H:%M')
-
         o['seats'] = Order.get_seats_by_order(o['order_id'])
-        if o['status'] == 'Active' and o['departure_time'] > now:
+        if o['status'] == 'Active' and o['departure_time'] >  current_time_str:
             o['display_status'] = 'Active'
             active_orders.append(o)
         else:
-            o['display_status'] = Order.get_display_status(o['status'], o['arrival_time'])
             past_orders.append(o)
 
     return render_template(
@@ -593,10 +587,12 @@ def add_flight():
                                    airplane_id=airplane_id, airplane_size=plane_info['Size'],
                                    pilots=pilots, attendants=attendants, today=today)
 
+        duration = Flight.get_route_duration(origin, destination)
+        dep_dt = datetime.fromisoformat(departure_time.replace(' ', 'T'))
+        arrival_time = (dep_dt + timedelta(minutes=duration)).strftime('%Y-%m-%d %H:%M')
 
-        Flight.create_flight(origin, destination, datetime.fromisoformat(departure_time),
-                             airplane_id, pilot_ids, attendant_ids, DBService,
-                             request.form.get("price_regular"), request.form.get("price_business"))
+        Flight.create_flight(origin, destination, departure_time, arrival_time, airplane_id, pilot_ids, attendant_ids, DBService, request.form.get("price_regular"),
+        request.form.get("price_business"))
 
         return render_template("add_flight.html", step=1, airports=airports, today=today,
                                success_msg="Flight created successfully!")
@@ -687,8 +683,3 @@ def reports():
     assets = Manager.build_manager_dashboard(start_date, end_date)
 
     return render_template("reports.html", assets=assets)
-
-
-# ========================================
-if __name__ == "__main__":
-    app.run(debug=True)
