@@ -28,11 +28,14 @@ def homepage():
     username = SessionService.get_username(session)
     role = SessionService.get_user_role(session)
 
+    origin = request.values.get("origin", "").upper().strip()
+    destination = request.values.get("destination", "").upper().strip()
+
     filters = {
-        "departure_date": request.args.get('departure_date'),
-        "origin": request.args.get('origin'),
-        "destination": request.args.get('destination'),
-        "status": request.args.get('status')
+        "departure_date": request.values.get('departure_date'),
+        "origin": origin if origin else None,
+        "destination": destination if destination else None,
+        "status": request.values.get('status')
     }
 
     today = date.today().strftime('%Y-%m-%d')
