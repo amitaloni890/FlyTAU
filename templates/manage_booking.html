@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU - Manage My Booking</title>
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <div class="layout">
+        <main>
+            <section class="hero">
+                <h2>Manage My Booking</h2>
+            </section>
+
+            <form action="/manage_booking" method="POST" class="search-form">
+                {% if error %}
+                    <p class="alert-message alert-error">
+                        <span class="fa-solid fa-circle-exclamation"></span> {{ error }}
+                    </p>
+                {% endif %}
+
+                <input type="number" name="order_id" class="form-input" placeholder="Enter your Order ID" required>
+                <input type="email" name="email" class="form-input" placeholder="Enter your Email" required>
+
+                <button type="submit">
+                    <span class="fa-solid fa-arrow-right-to-bracket"></span> Continue
+                </button>
+            </form>
+        </main>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU Guest Checkout</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <div class="layout">
+        <main>
+
+            <section class="hero">
+                <h2>Guest Checkout</h2>
+            </section>
+
+            <form action="/guest_checkout/{{ flight_id }}" method="POST" class="search-form">
+
+                {% if message %}
+                    <p class="alert-message alert-error">
+                        {{ message }}
+                        {% if "registered" in message.lower() %}
+                          <!-- If guest email is already registered, show login link -->
+                            <br>
+                            <a href="/login">Click here to Login</a>
+                        {% endif %}
+                    </p>
+                {% endif %}
+
+                <input type="text" name="first_name" class="form-input" placeholder="First Name" value="{{ request.form.get('first_name', '') }}" required autocomplete="off" maxlength="50">
+                <input type="text" name="last_name" class="form-input" placeholder="Last Name" value="{{ request.form.get('last_name', '') }}" required autocomplete="off" maxlength="50">
+                <input type="email" name="email" class="form-input" placeholder="Email" value="{{ request.form.get('email', '') }}" required autocomplete="off" maxlength="50">
+                <input type="date" name="birth_date" class="form-input" value="{{ request.form.get('birth_date', '') }}"
+                       placeholder="Date of Birth" required max="{{ max_birth_date }}">
+                <input type="text" name="passport_number" class="form-input" value="{{ request.form.get('passport_number', '') }}"
+                       placeholder="Passport Number" required maxlength="20">
+
+                <!-- Multiple phone numbers handling -->
+                {% for phone_val in phones %}
+                    <input type="tel" name="phone_numbers" class="form-input" placeholder="Phone Number" value="{{ phone_val }}" required pattern="[0-9]{9,15}">
+                {% endfor %}
+
+                <!-- Optional: Add another phone number (can continue without this) -->
+                <div class="button-wrapper">
+                    <button type="submit" name="add_phone_field" class="simple-grey-btn" formnovalidate>
+                        Add Phone Number
+                    </button>
+                </div>
+
+                <button type="submit">
+                    <span class="fa-solid fa-arrow-right"></span> Continue
+                </button>
+            </form>
+
+        </main>
+    </div>
+
+</div>
+
+</body>
+</html>

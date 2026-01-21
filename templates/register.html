@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU Register</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <div class="layout">
+        <main>
+            <section class="hero">
+                <h2>Register</h2>
+            </section>
+
+            <form action="/register" method="POST" class="search-form">
+
+                {% if message %}
+                    <p class="alert-message alert-error">
+                        <span class="fa-solid fa-circle-exclamation"></span> {{ message }}
+                    </p>
+                {% endif %}
+
+                <input type="text" name="first_name" class="form-input" value="{{ request.form.get('first_name', '') }}"
+                       placeholder="First Name (English Only)" required autocomplete="off"
+                       maxlength="50" pattern="[A-Za-z]+">
+
+                <input type="text" name="last_name" class="form-input" value="{{ request.form.get('last_name', '') }}"
+                       placeholder="Last Name (English Only)" required autocomplete="off"
+                       maxlength="50" pattern="[A-Za-z]+">
+
+                <input type="email" name="user_email" class="form-input" value="{{ request.form.get('user_email', '') }}"
+                       placeholder="Email" required autocomplete="off" maxlength="45">
+
+                <input type="password" name="password" class="form-input"
+                       placeholder="Password" required autocomplete="off" maxlength="45">
+
+                <!-- Restrict birth date to enforce the minimum allowed age -->
+                <input type="date" name="birth_date" class="form-input" value="{{ request.form.get('birth_date', '') }}"
+                       placeholder="Date of Birth" required max="{{ max_birth_date }}">
+
+                <input type="text" name="passport_number" class="form-input" value="{{ request.form.get('passport_number', '') }}"
+                       placeholder="Passport Number" required maxlength="20">
+
+                {% for phone_val in phones %}
+                    <input type="tel" name="phone_numbers" class="form-input"
+                           placeholder="Phone Number" value="{{ phone_val }}"
+                           required pattern="[0-9]{9,15}">
+                {% endfor %}
+
+                <div class="button-wrapper">
+                    <button type="submit" name="add_phone_field" class="simple-grey-btn" formnovalidate>
+                        Add Phone Number
+                    </button>
+                </div>
+
+                <button type="submit" name="submit_register">
+                    <span class="fa-solid fa-user-plus"></span> Register
+                </button>
+            </form>
+
+            <div class="register">
+                <p>
+                    Already have an account?
+                    <a href="/login">Sign in</a>
+                    or
+                    <a href="/guest_login">Continue as a Guest</a>
+                </p>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU - Add Flight</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="page-wrapper">
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon"><span class="fa-solid fa-house fa-2x"></span></a>
+    </header>
+
+    <div class="layout">
+        <main>
+            <section class="hero"><h2>Add Flight</h2></section>
+
+            {% if success_msg %}
+                <p class="alert-message alert-success">{{ success_msg }}</p>
+            {% endif %}
+
+            {% if error_msg %}
+                <p class="alert-message alert-error">{{ error_msg }}</p>
+            {% endif %}
+
+            {% if step == 1 %}
+            <form method="POST" class="search-form">
+                <input type="hidden" name="step" value="1">
+                <select name="origin_airport" class="form-input" required>
+                    <option value="" disabled selected>Select Origin Airport</option>
+                    <!-- Loop through available airports -->
+                    {% for airport in airports %}<option value="{{ airport }}">{{ airport }}</option>{% endfor %}
+                </select>
+                <button type="submit">Choose Destination</button>
+            </form>
+            {% endif %}
+
+            {% if step == 2 %}
+            <form method="POST" class="search-form">
+                <input type="hidden" name="step" value="2">
+                <input type="hidden" name="origin_airport" value="{{ origin }}">
+
+                <div class="alert-message">
+                    <strong>Origin:</strong> {{ origin }}
+                </div>
+
+                <select name="destination_airport" class="form-input" required>
+                    <option value="" disabled selected>Select Destination Airport</option>
+                    {% for dest in destinations %}<option value="{{ dest }}">{{ dest }}</option>{% endfor %}
+                </select>
+
+                <input type="datetime-local" name="departure_time" class="form-input" required min="{{ today }}">
+
+                <button type="submit">Find Available Airplanes</button>
+            </form>
+            {% endif %}
+
+            {% if step == 3 %}
+            <form method="POST" class="search-form">
+                <input type="hidden" name="step" value="3">
+                <input type="hidden" name="origin_airport" value="{{ origin }}">
+                <input type="hidden" name="destination_airport" value="{{ destination }}">
+                <input type="hidden" name="departure_time" value="{{ departure_time }}">
+
+                <div class="alert-message">
+                    <strong>Route:</strong> {{ origin }} → {{ destination }}
+                </div>
+
+                <select name="airplane_id" class="form-input" required>
+                    <option value="" disabled selected>Select Airplane</option>
+                    {% for a in airplanes %}
+                        <option value="{{ a['Airplane_ID'] }}">{{ a['Airplane_ID'] }} - {{ a['Manufacturer'] }} ({{ a['Size'] }})</option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit">Continue to Crew & Pricing</button>
+            </form>
+            {% endif %}
+
+            {% if step == 4 %}
+            <form method="POST" class="search-form">
+                <input type="hidden" name="step" value="4">
+                <input type="hidden" name="origin_airport" value="{{ origin }}">
+                <input type="hidden" name="destination_airport" value="{{ destination }}">
+                <input type="hidden" name="departure_time" value="{{ departure_time }}">
+                <input type="hidden" name="airplane_id" value="{{ airplane_id }}">
+
+                <div class="flight-details-card">
+                    <p><strong>Flight:</strong> {{ origin }} → {{ destination }}</p>
+                    <p><strong>Airplane:</strong> {{ airplane_id }} ({{ airplane_size }})</p>
+                </div>
+
+                <input type="number" name="price_regular" step="0.01" class="form-input" placeholder="Economy Class Price ($)" required>
+
+                <!-- Business price only for large planes -->
+                {% if airplane_size == 'large' %}
+                <input type="number" name="price_business" step="0.01" class="form-input" placeholder="Business Class Price ($)" required>
+                {% endif %}
+
+                <div class="about-section">
+                    <h4>Assign Pilots (Select {{ 3 if airplane_size=='large' else 2 }})</h4>
+                    {% for p in pilots %}
+                        <div class="list-name">
+                            <input type="checkbox" name="pilot_ids" value="{{ p['employee_id'] }}">
+                            {{ p['first_name'] }} {{ p['last_name'] }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="about-section">
+                    <h4>Assign Attendants (Select {{ 6 if airplane_size=='large' else 3 }})</h4>
+                    {% for a in attendants %}
+                        <div class="list-name">
+                            <input type="checkbox" name="attendant_ids" value="{{ a['employee_id'] }}">
+                            {{ a['first_name'] }} {{ a['last_name'] }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="button-wrapper center">
+                    <button type="submit">
+                        <span class="fa-solid fa-plane-arrival"></span> Create Flight
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+        </main>
+    </div>
+</div>
+</body>
+</html>

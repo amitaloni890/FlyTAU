@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU - Add Route</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <div class="layout">
+        <main>
+            <section class="hero">
+                <h2>Add New Flight Route</h2>
+            </section>
+
+            <form action="/add_route" method="POST" class="search-form">
+
+                {% if message %}
+                    <p class="alert-message {% if success %}alert-success{% else %}alert-error{% endif %}">
+                        {{ message }}
+                    </p>
+                {% endif %}
+
+                <input type="text" name="origin" class="form-input"
+                       placeholder="Origin Airport Code (e.g. TLV)" required
+                       autocomplete="off" maxlength="10" pattern="[A-Za-z]+">
+
+                <input type="text" name="destination" class="form-input"
+                       placeholder="Destination Airport Code (e.g. CDG)" required
+                       autocomplete="off" maxlength="10" pattern="[A-Za-z]+">
+
+                <input type="number" name="duration" class="form-input"
+                       placeholder="Flight Duration (Minutes)" required>
+
+                <button type="submit">
+                    <span class="fa-solid fa-plus-circle"></span> Create Route
+                </button>
+            </form>
+        </main>
+    </div>
+</div>
+
+</body>
+</html>

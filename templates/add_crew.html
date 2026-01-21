@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU - Add Flight Crew</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <div class="layout">
+        <main>
+
+            <section class="hero">
+                <h2>Add Flight Crew Member</h2>
+            </section>
+
+            <form action="/add_crew" method="POST" class="search-form">
+
+                {% if message %}
+                    <p class="alert-message {% if 'success' in message.lower() %}alert-success{% else %}alert-error{% endif %}">
+                        {{ message }}
+                    </p>
+                {% endif %}
+
+                <input type="text" name="employee_id" class="form-input" placeholder="Employee ID" required maxlength="20">
+                <!-- Validation restricts names to Hebrew characters only -->
+                <input type="text" name="first_name" class="form-input" placeholder="First Name (Hebrew Only)" required maxlength="50" pattern="[\u0590-\u05FF\s]+">
+                <input type="text" name="last_name" class="form-input" placeholder="Last Name (Hebrew Only)" required maxlength="50" pattern="[\u0590-\u05FF\s]+">
+                <input type="text" name="city" class="form-input" placeholder="City" required maxlength="50">
+                <input type="text" name="street" class="form-input" placeholder="Street" required maxlength="50">
+                <input type="text" name="house_number" class="form-input" placeholder="House Number" required maxlength="10">
+                <!-- Phone number format constraint -->
+                <input type="tel" name="phone_number" class="form-input" placeholder="Phone Number" required pattern="[0-9]{9,15}">
+
+                <label for="start_date" class="form-label">Start Date:</label>
+                <input type="date" id="start_date" name="start_date" class="form-input" required>
+
+                <label for="role" class="form-label">Role:</label>
+                <select id="role" name="role" class="form-input" required>
+                    <option value="" disabled selected>Select Role</option>
+                    <option value="Pilot">Pilot</option>
+                    <option value="Attendant">Attendant</option>
+                </select>
+
+                <label for="qualifications" class="form-label">Qualifications:</label>
+                <select id="qualifications" name="qualifications" class="form-input" required>
+                    <option value="" disabled selected>Has Qualifications?</option>
+                    <option value="1">Yes</option>
+                    <option value="0">No</option>
+                </select>
+
+                <button type="submit">
+                    <span class="fa-solid fa-user-plus"></span> Add Crew Member
+                </button>
+            </form>
+
+        </main>
+    </div>
+
+</div>
+
+</body>
+</html>

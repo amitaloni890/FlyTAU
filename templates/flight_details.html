@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLYTAU - Flight {{ flight.flight_id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <section class="hero">
+        <h2>Flight {{ flight.flight_id }}</h2>
+
+        {% if role == 'admin' %}
+            {% set admin_display = flight.display_status %}
+            {% if flight.display_status not in ['Canceled', 'Completed'] %}
+                {% if flight.eco_status == 'Fully Booked' and flight.bus_status == 'Active' %}
+                    {% set admin_display = "Economy: Full | Business: Active" %}
+                {% elif flight.eco_status == 'Active' and flight.bus_status == 'Fully Booked' %}
+                    {% set admin_display = "Economy: Active | Business: Full" %}
+                {% endif %}
+            {% endif %}
+            {% set badge_class = 'fully-booked' if 'Full' in admin_display else flight.display_status|lower %}
+
+            <span class="status-badge {{ badge_class }}">
+                {{ admin_display }}
+            </span>
+        {% else %}
+            <!-- For users: show partially-full if any class is fully booked -->
+            {% set eco_full = (flight.eco_status == 'Fully Booked') %}
+            {% set bus_full = (flight.price_business and flight.bus_status == 'Fully Booked') %}
+
+            {% if eco_full or bus_full %}
+                <span class="status-badge partially-full">
+                    <i class="fa-solid fa-circle-info"></i> Limited Availability
+                </span>
+            {% else %}
+                <span class="status-badge active">
+                    {{ flight.display_status }}
+                </span>
+            {% endif %}
+        {% endif %}
+    </section>
+
+    {% if canceled %}
+    <p class="alert-message alert-error">
+        <span class="fa-solid fa-circle-exclamation"></span> This flight has been canceled.
+    </p>
+    {% endif %}
+
+    <div class="search-form flight-details-card">
+
+        <div class="flight-route">
+            <div class="flight-location">
+                <h3>{{ flight.origin }}</h3>
+                <p>{{ flight.departure_time.strftime('%d/%m/%Y %H:%M') }}</p>
+            </div>
+
+            <div class="flight-line">
+                <hr class="flight-hr">
+                <span class="plane-icon">
+                    <i class="fa-solid fa-plane"></i>
+                    <span class="flight-duration">
+                        {{ flight.formatted_duration }} h
+                    </span>
+                </span>
+            </div>
+
+            <div class="flight-location">
+                <h3>{{ flight.destination }}</h3>
+                <p>{{ flight.arrival_time.strftime('%d/%m/%Y %H:%M') }}</p>
+            </div>
+        </div>
+
+        <div class="flight-prices">
+            <div class="price-box {% if flight.eco_status == 'Fully Booked' and role != 'admin' %}price-sold-out{% endif %}">
+                <h4>Economy</h4>
+                {% if flight.eco_status == 'Fully Booked' %}
+                    {% if role == 'admin' %}
+                        <p>${{ flight.price_regular }}</p>
+                        <p class="text-error">SOLD OUT</p>
+                    {% else %}
+                        <p>SOLD OUT</p>
+                    {% endif %}
+                {% else %}
+                    <p>${{ flight.price_regular }}</p>
+                {% endif %}
+            </div>
+
+            {% if flight.price_business %}
+            <div class="price-box {% if flight.bus_status == 'Fully Booked' and role != 'admin' %}price-sold-out{% endif %}">
+                <h4>Business</h4>
+                {% if flight.bus_status == 'Fully Booked' %}
+                    {% if role == 'admin' %}
+                        <p>${{ flight.price_business }}</p>
+                        <p class="text-error">SOLD OUT</p>
+                    {% else %}
+                        <p>SOLD OUT</p>
+                    {% endif %}
+                {% else %}
+                    <p>${{ flight.price_business }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="flight-buttons">
+            {% if role != 'admin' %}
+                <a href="/order_flight/{{ flight.flight_id }}">
+                    <button class="search-form">
+                        <span class="fa-solid fa-plane-departure"></span> Order Flight
+                    </button>
+                </a>
+            <!-- Admin can cancel flight only if >72h to departure and active -->
+            {% elif role == 'admin' %}
+                {% if flight.hours_to_departure() >= 72 and (flight.display_status == 'Active' or flight.display_status == 'Fully Booked') %}
+                    <a href="/cancel_flight/{{ flight.flight_id }}">
+                        <button class="search-form cancel-button">
+                            <span class="fa-solid fa-ban"></span> Cancel Flight
+                        </button>
+                    </a>
+                {% endif %}
+            {% endif %}
+
+            <a href="/">
+                <button class="search-form">
+                    <span class="fa-solid fa-arrow-left"></span> Back to Flights Board
+                </button>
+            </a>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU Login</title>
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <div class="layout">
+        <main>
+
+            <section class="hero">
+                <h2>Login</h2>
+            </section>
+
+            <form action="/login" method="POST" class="search-form">
+                <input type="hidden" name="next" value="{{ next }}">
+
+                {% if message %}
+                    {% if is_info %}
+                        <p>
+                            <i class="fa-solid fa-circle-info"></i> {{ message }}
+                        </p>
+                        <br> {% else %}
+                        <p class="alert-message alert-error">
+                            <span class="fa-solid fa-circle-exclamation"></span> {{ message }}
+                        </p>
+                    {% endif %}
+                {% endif %}
+
+                <input type="email" name="user_email" class="form-input" placeholder="Enter your email" required autocomplete="off">
+                <input type="password" name="password" class="form-input" placeholder="Enter your password" required autocomplete="off">
+
+                <button type="submit">
+                    <span class="fa-solid fa-right-to-bracket"></span> Log In
+                </button>
+            </form>
+
+             <!-- Manager login button -->
+            <form action="/login_manager" method="get" class="search-form">
+                <button type="submit" class="manager-btn">
+                    <span class="fa-solid fa-shield-halved"></span> Login as a Manager
+                </button>
+            </form>
+
+            <div class="register">
+                <p>
+                    New Here?
+                    <a href="/register">Create an account</a> or <a href="/guest_login">Continue as a Guest</a>
+                </p>
+            </div>
+
+        </main>
+    </div>
+
+</div>
+
+</body>
+</html>

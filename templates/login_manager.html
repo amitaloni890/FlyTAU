@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU Manager Login</title>
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <div class="layout">
+        <main>
+
+            <section class="hero">
+                <h2>Manager Login</h2>
+            </section>
+
+            <form action="/login_manager" method="POST" class="search-form">
+
+                {% if message %}
+                    <p class="alert-message alert-error">
+                        <span class="fa-solid fa-circle-exclamation"></span> {{ message }}
+                    </p>
+                {% endif %}
+
+                <input type="text" name="employee_ID" class="form-input" placeholder="Enter your ID" required autocomplete="off">
+                <input type="password" name="password" class="form-input" placeholder="Enter your password" required autocomplete="off">
+
+                <button type="submit">
+                    <span class="fa-solid fa-right-to-bracket"></span> Log In
+                </button>
+            </form>
+
+        </main>
+    </div>
+
+</div>
+
+</body>
+</html>

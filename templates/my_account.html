@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU - My Account</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <div class="layout">
+        <main>
+
+            <section class="hero">
+                <h2>My Account</h2>
+                {% if not is_guest %}
+                    <p>Welcome, {{ username }}!</p>
+                {% endif %}
+            </section>
+
+            {% if canceled %}
+             <!-- Show cancellation confirmation with new price -->
+                <p class="alert-message alert-success">
+                    <span class="fa-solid fa-circle-check"></span> Your flight has been canceled. New price (cancellation fee): ${{ new_price }}
+                </p>
+            {% endif %}
+
+            <h3>Active Orders</h3>
+
+            {% if active_orders %}
+                <table class="flights-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Flight ID</th>
+                            <th>Tickets</th>
+                            <th>Total Price</th>
+                            <th>Order Date</th>
+                            <th>Departure Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in active_orders %}
+                            <tr>
+                                <td>{{ order.order_id }}</td>
+                                <td>{{ order.flight_id }}</td>
+                                <!-- Display seats grouped by class -->
+                                <td>
+                                    {% if order.seats.Business %}
+                                        <strong>Business:</strong> {{ order.seats.Business|join(', ') }}<br>
+                                    {% endif %}
+
+                                    {% if order.seats.Economy %}
+                                        <strong>Economy:</strong> {{ order.seats.Economy|join(', ') }}
+                                    {% endif %}
+
+                                    {% if not order.seats.Business and not order.seats.Economy %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ order.total_price }}</td>
+                                <td>{{ order.order_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ order.departure_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <!-- Show cancel button only if within allowed cancellation period -->
+                                <td>
+                                    {% if order.departure_time > cancel_time_limit %}
+                                        <form action="/cancel_order/{{ order.order_id }}" method="POST">
+                                            <button type="submit" class="cancel-button">
+                                                Cancel Flight
+                                                <span class="fa-solid fa-xmark"></span>
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="status-badge canceled">
+                                            Cannot cancel
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="alert-message">No active orders found.</p>
+            {% endif %}
+
+            {% if not is_guest %}
+                <h3>Purchase History</h3>
+
+                <form method="GET" action="/my_account" class="search-form">
+                    <select name="status" class="form-input">
+                        <option value="">All Statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Customer Cancellation">Customer Cancellation</option>
+                        <option value="System Cancellation">System Cancellation</option>
+                    </select>
+                    <button type="submit">Apply</button>
+                </form>
+
+                {% if past_orders %}
+                    <table class="flights-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Flight ID</th>
+                                <th>Tickets</th>
+                                <th>Total Price</th>
+                                <th>Order Date</th>
+                                <th>Departure Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in past_orders %}
+                                <tr>
+                                    <td>{{ order.order_id }}</td>
+                                    <td>{{ order.flight_id }}</td>
+                                    <td>
+                                        {% if order.seats.Business %}
+                                            <strong>Business:</strong> {{ order.seats.Business|join(', ') }}<br>
+                                        {% endif %}
+
+                                        {% if order.seats.Economy %}
+                                            <strong>Economy:</strong> {{ order.seats.Economy|join(', ') }}
+                                        {% endif %}
+
+                                        {% if not order.seats.Business and not order.seats.Economy %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ order.total_price }}</td>
+                                    <td>{{ order.order_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>{{ order.departure_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>
+                                        <span class="status-badge {{ order.display_status|lower|replace(' ', '-') }}">
+                                            {{ order.display_status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="alert-message">No orders found.</p>
+                {% endif %}
+            {% endif %}
+
+        </main>
+    </div>
+
+</div>
+
+</body>
+</html>

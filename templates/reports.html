@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLYTAU - Management Reports</title>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div class="page-wrapper dashboard-reports">
+
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <section class="hero">
+        <h1>דוחות ניהוליים – FLYTAU</h1>
+        <p>סקירה וביצועי חברה בזמן אמת</p>
+    </section>
+
+    <form class="search-form" method="GET">
+        <label>מתאריך:</label>
+        <input type="date" name="start_date" class="form-input" value="{{ assets.filters.start or '' }}">
+
+        <label>עד תאריך:</label>
+        <input type="date" name="end_date" class="form-input" value="{{ assets.filters.end or '' }}">
+
+        <button type="submit">סנן דוח הכנסות וביטולי לקוחות</button>
+
+        <!-- Reset filter link -->
+        <div class="nav-actions">
+            <a href="/reports">איפוס סינון</a>
+        </div>
+    </form>
+
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-label">הכנסות</div>
+            <div class="kpi-value">₪{{ "{:,.2f}".format(assets.totals.revenue) }}</div>
+            <div class="kpi-sub">סה"כ הזמנות בתקופה הנבחרת (כולל דמי ביטול)</div>
+        </div>
+        <div class="kpi-card highlight">
+            <div class="kpi-label">אחוז ביטולי לקוחות</div>
+            <div class="kpi-value text-error">{{ assets.totals.cancel_rate }}%</div>
+            <div class="kpi-sub">ביחס לכלל ההזמנות בתקופה הנבחרת</div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="dashboard-card full-width">
+            <div class="card-header"><h3><i class="fa-solid fa-trophy"></i> עובדים מצטיינים (שעות טיסה מצטברות)</h3></div>
+            <!-- Silver rank: check if there are at least 2 employees -->
+            <div class="podium">
+                {% if assets.lists.top_employees|length >= 2 %}
+                <div class="podium-item silver">
+                    <div class="name">{{ assets.lists.top_employees[1].name }}</div>
+                    <div class="podium-column">
+                        <div class="amount">{{ assets.lists.top_employees[1].value }} שעות</div>
+                        <div class="rank">2</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Gold rank: top employee -->
+                {% if assets.lists.top_employees|length >= 1 %}
+                <div class="podium-item gold">
+                    <div class="name">{{ assets.lists.top_employees[0].name }}</div>
+                    <div class="podium-column">
+                        <i class="fa-solid fa-crown trophy-icon"></i>
+                        <div class="amount">{{ assets.lists.top_employees[0].value }} שעות</div>
+                        <div class="rank">1</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Bronze rank: check if there are at least 3 employees -->
+                {% if assets.lists.top_employees|length >= 3 %}
+                <div class="podium-item bronze">
+                    <div class="name">{{ assets.lists.top_employees[2].name }}</div>
+                    <div class="podium-column">
+                        <div class="amount">{{ assets.lists.top_employees[2].value }} שעות</div>
+                        <div class="rank">3</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="dashboard-card">
+            <div class="card-header"><h3><i class="fa-solid fa-gem"></i>לקוחות הכי רווחיים בשנה האחרונה</h3></div>
+            <div class="card-body">
+                <ul class="stats-list">
+                    <!-- Loop over top customers and display name + revenue -->
+                    {% for c in assets.lists.top_customers %}
+                    <li>
+                        <span class="list-name">{{ c.name }}</span>
+                        <span class="list-value">${{ "{:,.0f}".format(c.value) }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="dashboard-card">
+            <div class="card-header"><h3><i class="fa-solid fa-route"></i> מסלולים מבוקשים בשנה האחרונה</h3></div>
+            <div class="card-body">
+                <div class="tags-container">
+                    <!-- Loop over top routes -->
+                    {% for r in assets.lists.top_routes %}
+                    <div class="info-item"><i class="fa-solid fa-plane-up"></i> {{ r.name }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-card full-width">
+            <div class="card-header"><h3><i class="fa-solid fa-calendar-star"></i> חודשי שיא (הזמנות) בשנה האחרונה</h3></div>
+            <div class="card-body">
+                <div class="hero-features">
+                    {% for m in assets.lists.top_months %}
+                    <span><i class="fa-regular fa-calendar-check"></i> {{ m.name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

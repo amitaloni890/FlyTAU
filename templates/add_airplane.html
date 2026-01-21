@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU - Add Airplane</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="page-wrapper">
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon"><span class="fa-solid fa-house fa-2x"></span></a>
+    </header>
+
+    <div class="layout">
+        <main>
+            <section class="hero"><h2>Add New Airplane</h2></section>
+
+            {% if message %}
+                <p class="alert-message {% if 'successfully' in message %}alert-success{% else %}alert-error{% endif %}">
+                    {{ message }}
+                </p>
+            {% endif %}
+
+            {% if step == 1 %}
+            <form method="POST" class="search-form">
+                <input type="hidden" name="step" value="1">
+
+                <input type="text" name="airplane_id" class="form-input" placeholder="Airplane ID" required>
+                <input type="text" name="manufacturer" class="form-input" placeholder="Manufacturer" required>
+
+                <!-- Airplane size determines the structure of step 2 -->
+                <select name="size" class="form-input" required>
+                    <option value="" disabled selected>Select Size</option>
+                    <option value="small">Small</option>
+                    <option value="large">Large</option>
+                </select>
+
+                <label class="form-label">Purchase Date:</label>
+                <input type="date" name="purchase_date" class="form-input" required>
+
+                <button type="submit">
+                    <span class="fa-solid fa-gear"></span> Configure Seats
+                </button>
+            </form>
+            {% endif %}
+
+            {% if step == 2 %}
+            <form method="POST" class="search-form">
+                <!-- Previous-step data is forwarded via hidden form fields -->
+                <input type="hidden" name="step" value="2">
+                <input type="hidden" name="airplane_id" value="{{ data.airplane_id }}">
+                <input type="hidden" name="manufacturer" value="{{ data.manufacturer }}">
+                <input type="hidden" name="size" value="{{ data.size }}">
+                <input type="hidden" name="purchase_date" value="{{ data.purchase_date }}">
+
+                <div class="hero">
+                    <p>Configuring <strong>{{ data.size }}</strong> airplane: <strong>{{ data.airplane_id }}</strong></p>
+                </div>
+
+                <input type="number" name="eco_rows" class="form-input" placeholder="Economy Rows" required min="1">
+                <input type="number" name="eco_cols" class="form-input" placeholder="Economy Columns" required min="1">
+
+                {% if data.size == 'large' %}
+                    <input type="number" name="bus_rows" class="form-input" placeholder="Business Rows" required min="1">
+                    <input type="number" name="bus_cols" class="form-input" placeholder="Business Columns" required min="1">
+                {% endif %}
+
+                <button type="submit">
+                    <span class="fa-solid fa-floppy-disk"></span> Save Airplane
+                </button>
+            </form>
+            {% endif %}
+        </main>
+    </div>
+</div>
+</body>
+</html>

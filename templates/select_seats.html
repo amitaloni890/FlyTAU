@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLYTAU - Select Seats</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <section class="hero center-content">
+        <h2>Select Your Seats</h2>
+        <p>Flight: {{ flight.origin }} → {{ flight.destination }} | {{ flight.departure_time.strftime('%Y-%m-%d %H:%M') }}</p>
+    </section>
+
+    <form action="/confirm_seats/{{ flight.flight_id }}" method="POST">
+        <div class="seat-legend">
+            <div class="legend-item"><div class="legend-box legend-free"></div> Free</div>
+            <div class="legend-item"><div class="legend-box legend-taken"></div> Taken</div>
+            <div class="legend-item"><div class="legend-box legend-selected"></div> Selected</div>
+        </div>
+
+        <div class="seat-map-container">
+            {% for class_type, rows in seats.items() %}
+            <div class="class-section">
+                <h3>{{ class_type }} Class</h3>
+                <div class="seat-map" style="grid-template-columns: repeat({{ rows[0]|length }}, 55px);">
+                    {% for row in rows %}
+                        {% for seat in row %}
+                             <!-- Add 'unavailable' class and disable input if seat is taken -->
+                            <div class="seat {% if not seat.available %}unavailable{% endif %}">
+                                <input type="checkbox"
+                                       id="seat_{{ class_type }}_{{ seat.row }}{{ seat.column }}"
+                                       name="selected_seats"
+                                       value="{{ class_type }}-{{ seat.row }}-{{ seat.column }}"
+                                       {% if not seat.available %}disabled{% endif %}>
+                                <label for="seat_{{ class_type }}_{{ seat.row }}{{ seat.column }}">
+                                    {{ seat.row }}{{ seat.column }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="center-content">
+            <button type="submit" class="continue-btn">
+                Continue <span class="fa-solid fa-arrow-right"></span>
+            </button>
+        </div>
+    </form>
+</div>
+</body>
+</html>

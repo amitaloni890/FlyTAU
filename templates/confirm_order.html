@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLYTAU - Order Confirmed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <section class="hero">
+        <h2>Order Confirmed!</h2>
+        <p>Thank you for your purchase.</p>
+        <p><strong>Order Number:</strong> {{ order_number }}</p>
+    </section>
+
+    <!-- Confirmation Card -->
+    <div class="flight-details-card center-content">
+        <i class="fa-solid fa-circle-check check-icon"></i>
+
+        <p class="alert-message alert-success">
+            Your order has been successfully completed.
+        </p>
+
+        <p>
+            {% if is_guest %}
+                You can manage your orders <a href="/manage_booking">here</a>.
+            {% else %}
+                You can view your orders in <a href="/my_account">My Account</a>.
+            {% endif %}
+        </p>
+
+        <!-- Back to homepage button -->
+        <div class="search-form"> <a href="/">
+                <button type="button">
+                    <span class="fa-solid fa-arrow-left"></span> Back to Flights Board
+                </button>
+            </a>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

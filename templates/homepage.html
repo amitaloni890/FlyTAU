@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FLYTAU</title>
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<div class="page-wrapper">
+
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <nav class="nav-actions">
+            {% if role == "user" %}
+                <span><i class="fa-solid fa-user"></i> Welcome, {{ username }}!</span>
+                <a href="/my_account"><i class="fa-solid fa-address-card"></i> My Account</a>
+                <a href="/logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+
+            {% elif role == "admin" %}
+                <span><i class="fa-solid fa-user-shield"></i> Admin</span>
+                <a href="/logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+
+            {% else %}
+                <a href="/login"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
+                <a href="/register"><i class="fa-solid fa-user-plus"></i> Register</a>
+                <a href="/manage_booking"><i class="fa-solid fa-address-card"></i> Manage My Bookings</a>
+            {% endif %}
+        </nav>
+    </header>
+
+    <section class="hero">
+        <h1>Experience the World with FLYTAU</h1>
+        <p>Your journey, handled with care.</p>
+
+        <div class="hero-features">
+            <span><i class="fa-solid fa-clock-rotate-left"></i> Flexible Cancellation up to 36h</span>
+            <span><i class="fa-solid fa-shield-halved"></i> Global Safety Standards</span>
+        </div>
+
+        <h2>Find Your Next Adventure</h2>
+    </section>
+
+
+    {% if role == "admin" %}
+    <!-- Admin sidebar toggle and links -->
+        <input type="checkbox" id="adminSidebarToggle" class="admin-sidebar-checkbox">
+        <label for="adminSidebarToggle" class="admin-sidebar-toggle">
+            <span><i class="fa-solid fa-user-gear"></i> Admin Panel</span>
+        </label>
+
+        <div class="admin-sidebar">
+            <label for="adminSidebarToggle" class="admin-sidebar-close">&times;</label>
+
+            <a href="/add_crew">
+                <span class="fa-solid fa-users"></span> Add Crew Members
+            </a>
+
+            <a href="/add_flight">
+                <span class="fa-solid fa-plane-departure"></span> Add New Flight
+            </a>
+
+            <a href="/add_airplane">
+                <span class="fa-solid fa-plane-up"></span> Add New Airplane
+            </a>
+
+            <a href="/add_route">
+                <span class="fa-solid fa-route"></span> Add Route
+            </a>
+
+            <a href="/reports">
+                <span class="fa-solid fa-chart-line"></span> Reports & Statistics
+            </a>
+        </div>
+    {% endif %}
+
+    <div class="layout">
+        <main>
+
+            <form method="get" class="search-form">
+                <input type="text" name="origin" placeholder="Origin Airport (e.g., TLV)" class="form-input"
+                       value="{{ request.args.get('origin', '') }}">
+
+                <input type="text" name="destination" placeholder="Destination Airport (e.g., JFK)" class="form-input"
+                       value="{{ request.args.get('destination', '') }}">
+
+                <input type="date" name="departure_date" class="form-input"
+                       min="{{ today }}"
+                       value="{{ request.args.get('departure_date', '') }}">
+
+
+                {% if role == "admin" %}
+                <!-- Admin can filter by flight status -->
+                    <select name="status" class="form-input">
+                        <option value="">All Statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Fully Booked">Fully Booked</option>
+                        <option value="Canceled">Canceled</option>
+                    </select>
+                {% endif %}
+
+                <button type="submit">
+                    <span class="fa-solid fa-magnifying-glass"></span> Search
+                </button>
+            </form>
+
+            {% if popular_destinations and role != "admin" %}
+            <!-- Top destinations section for guests/users -->
+            <section class="top-destinations">
+                <h3>Fly to Our Top Destinations</h3>
+                <div class="destinations-grid">
+                    {% for dest in popular_destinations %}
+                    <div class="dest-card">
+                        <img src="{{ dest.img }}" alt="{{ dest.name }}">
+                        <div class="dest-info">
+                            <h4>{{ dest.name }}</h4>
+                            <p>Direct flights to {{ dest.code }}</p>
+                            <p class="starting-price">Starting from <strong>${{ dest.price }}</strong></p>
+                            <a href="/?destination={{ dest.code }}" class="view-dest-btn">Book Now</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            {% if flights|length == 0 %}
+                <div class="center-content alert-message alert-error">
+                    <i class="fa-solid fa-plane-slash check-icon"></i>
+                    <p>No Flights Found for your search criteria.</p>
+
+                    <div class="flight-buttons">
+                        <a href="/">
+                            <button type="button" class="cancel-button">
+                                <span class="fa-solid fa-rotate-left"></span> Clear All Filters
+                            </button>
+                        </a>
+                    </div>
+                </div>
+            {% else %}
+                <table class="flights-table">
+                    <thead>
+                        <tr>
+                            <th>Flight ID</th>
+                            <th>Origin</th>
+                            <th>Destination</th>
+                            <th>Departure</th>
+                            <th>Arrival</th>
+                            {% if role == "admin" %}
+                                <th>Status</th>
+                            {% endif %}
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for flight in flights %}
+                            {% if loop.changed(flight.flight_id) %}
+                             <!-- Conditionally style rows based on status -->
+                                <tr class="
+                                    {% if 'Full' in flight.display_status %}flight-full{% endif %}
+                                    {% if flight.display_status == 'Canceled' %}flight-canceled{% endif %}
+                                    {% if flight.display_status == 'Completed' %}flight-completed{% endif %}
+                                ">
+                                    <td>{{ flight.flight_id }}</td>
+                                    <td>{{ flight.origin }}</td>
+                                    <td>{{ flight.destination }}</td>
+                                    <td>{{ flight.departure_time.strftime("%Y-%m-%d %H:%M") }}</td>
+                                    <td>{{ flight.arrival_time.strftime("%Y-%m-%d %H:%M") }}</td>
+
+                                    {% if role == "admin" %}
+                                        <td>
+                                            {% set badge_class = 'fully-booked' if 'Full' in flight.display_status else flight.display_status|lower|replace(' ', '-')|replace(':', '')|replace('|', '') %}
+
+                                            <span class="status-badge {{ badge_class }}">
+                                                {{ flight.display_status }}
+                                            </span>
+                                        </td>
+                                    {% endif %}
+
+                                    <td>
+                                        <a href="/flight/{{ flight.flight_id }}">
+                                            <span class="fa-solid fa-eye"></span> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+
+            <section class="about-section">
+                <div class="about-content">
+                    <h2>About FLYTAU</h2>
+                    <p>
+                        Founded on the principle of excellence, <strong>FLYTAU</strong> is currently undergoing a strategic commercial expansion.
+                        Our mission is to provide an integrated travel experience that supports the entire flight lifecycle, from smart booking to safe landing.
+                    </p>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <footer class="footer">
+        <p>© 2026 FLYTAU. All rights reserved.</p>
+    </footer>
+
+</div>
+
+</body>
+</html>

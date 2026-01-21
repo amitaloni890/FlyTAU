@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLYTAU - Order Summary</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="header">
+        <img src="https://i.postimg.cc/pd384dgh/logo.png" alt="FLYTAU Logo" class="logo">
+        <a href="/" class="home-icon">
+            <span class="fa-solid fa-house fa-2x"></span>
+        </a>
+    </header>
+
+    <section class="hero center-content">
+        <h2>Order Summary</h2>
+    </section>
+
+    <div class="flight-details-card">
+        <div class="flight-route">
+            <div class="flight-location">
+                <h3>{{ flight.origin }}</h3>
+                <p>{{ flight.departure_time.strftime('%d/%m/%Y %H:%M') }}</p>
+            </div>
+
+            <div class="flight-line">
+                <hr class="flight-hr">
+                <span class="plane-icon">
+                    <i class="fa-solid fa-plane"></i>
+                    <span class="flight-duration">{{ flight.formatted_duration }} h</span>
+                </span>
+            </div>
+
+            <div class="flight-location">
+                <h3>{{ flight.destination }}</h3>
+                <p>{{ flight.arrival_time.strftime('%d/%m/%Y %H:%M') }}</p>
+            </div>
+        </div>
+
+        <!-- Selected Seats -->
+        <div class="selected-seats center-content">
+            <h4>Selected Seats:</h4>
+            <p>
+                {% for seat in selected_seats %}
+                    {{ seat }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+        </div>
+
+        <!-- Total Price -->
+        <div class="total-price center-content">
+            <h4>Total Price: ${{ total_price }}</h4>
+        </div>
+
+        <!-- Confirm Button -->
+        <div class="center-content">
+            <form action="/confirm_order/{{ flight.flight_id }}" method="POST">
+                {% for seat in selected_seats %}
+                    <input type="hidden" name="selected_seats" value="{{ seat }}">
+                {% endfor %}
+                <button type="submit" class="continue-btn">
+                    Confirm Order <span class="fa-solid fa-check"></span>
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>
+
